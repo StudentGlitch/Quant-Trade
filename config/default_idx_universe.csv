@@ -1,0 +1,6 @@
+ticker,sector,listing_date,status,avg_daily_volume,market_cap
+BBCA.JK,Finance,2000-05-31,Active,600000000,1200000000000
+TLKM.JK,Infrastructures,1995-11-14,Active,550000000,1100000000000
+BMRI.JK,Finance,2003-07-14,Active,700000000,1000000000000
+AMMN.JK,Basic Materials,2023-07-07,Active,800000000,900000000000
+ASII.JK,Industrials,1990-04-04,Active,400000000,800000000000

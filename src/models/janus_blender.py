@@ -15,7 +15,7 @@ class JanusBlender:
     MAX_WEIGHT = 0.8  # No cohort dominates above 80%
     ROLLING_WINDOW = 30  # Days for rolling accuracy calculation
 
-    def __init__(self, cohorts: List[str] = None):
+    def __init__(self, cohorts: Optional[List[str]] = None):
         self.cohorts = cohorts or ["ML_XGBoost", "LLM_Macro"]
         self.cohort_weights = {c: 1.0 / len(self.cohorts) for c in self.cohorts}
         self.history = pd.DataFrame(columns=['date', 'cohort', 'signal', 'actual_return'])
