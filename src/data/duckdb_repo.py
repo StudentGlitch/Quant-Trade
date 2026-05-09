@@ -24,6 +24,19 @@ class DuckDBRepo:
         """Initialize the DuckDB schema as per PRD 5.1."""
         logger.info("Initializing DuckDB schema...")
         
+
+        # IDX Metadata
+        self.con.execute('''
+            CREATE TABLE IF NOT EXISTS idx_metadata (
+                ticker VARCHAR PRIMARY KEY,
+                sector VARCHAR,
+                listing_date DATE,
+                status VARCHAR,
+                avg_daily_volume BIGINT,
+                market_cap BIGINT
+            );
+        ''')
+
         # Core Price Data
         self.con.execute("""
             CREATE TABLE IF NOT EXISTS ohlcv_daily (
