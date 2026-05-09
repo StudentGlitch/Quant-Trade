@@ -1,14 +1,12 @@
-import numpy as np
 import pandas as pd
-from typing import Optional
 
 def check_stationarity(series: pd.Series) -> bool:
     """Placeholder for ADF test logic if needed for PRD 5."""
     from statsmodels.tsa.stattools import adfuller
     try:
         res = adfuller(series.dropna())
-        return res[1] < 0.05
-    except:
+        return bool(res[1] < 0.05)
+    except Exception:
         return False
 
 def cap_outliers(series: pd.Series, threshold: float = 3.0) -> pd.Series:

@@ -1,7 +1,7 @@
 import pandas as pd
 from typing import Dict, Any, List
 from loguru import logger
-from .duckdb_repo import DuckDBRepo
+from ..data.duckdb_repo import DuckDBRepo
 import uuid
 from datetime import datetime
 
