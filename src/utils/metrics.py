@@ -25,6 +25,6 @@ def calculate_sortino(returns: pd.Series, risk_free_rate: float = 0.04) -> float
     """Sortino Ratio (PRD 4 /metrics.py)."""
     excess_returns = returns - (risk_free_rate / 252)
     downside_std = excess_returns[excess_returns < 0].std()
-    if downside_std == 0:
+    if downside_std == 0 or pd.isna(downside_std):
         return 0.0
     return (excess_returns.mean() / downside_std) * np.sqrt(252)
