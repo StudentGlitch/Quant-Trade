@@ -32,8 +32,8 @@ class ScrapeGraphClient:
         Scrape a specific URL with a natural language prompt.
         """
         if not self.api_key:
-            logger.warning(f"No API key provided for ScrapeGraphAI. Skipping scrape for {url}.")
-            return None
+            logger.debug(f"No API key provided for ScrapeGraphAI. Skipping scrape for {url}.")
+            return {}
 
         logger.info(f"Scraping {url} with prompt: '{prompt}'...")
         try:
