@@ -8,6 +8,18 @@ import time
 from .duckdb_repo import DuckDBRepo
 from requests.exceptions import ConnectionError, Timeout
 
+
+WIKI_MAPPING = {
+    "BBCA.JK": "Bank_Central_Asia",
+    "TLKM.JK": "Telkom_Indonesia",
+    "ASII.JK": "Astra_International",
+    "BMRI.JK": "Bank_Mandiri",
+    "AAPL": "Apple_Inc.",
+    "MSFT": "Microsoft",
+    "NVDA": "Nvidia",
+    "GOOGL": "Alphabet_Inc."
+}
+
 class AltDataClient:
     """
     Client for fetching Alternative Data (PRD Phase 1).
@@ -16,6 +28,7 @@ class AltDataClient:
     def __init__(self, repo: DuckDBRepo):
         self.repo = repo
         self._pytrends = None
+        self.google_rate_limited = False
 
     def _get_pytrends(self) -> Optional[TrendReq]:
         """Lazy load pytrends with retry logic for network blips (PRD Bug Fix)."""
@@ -44,7 +57,11 @@ class AltDataClient:
         for ticker, keyword in ticker_keywords.items():
             try:
                 # 1. Fetch Google Trends
-                pytrends = self._get_pytrends()
+                if self.google_rate_limited:
+                    logger.warning(f"Google Trends circuit breaker active, skipping {keyword}")
+                    pytrends = None
+                else:
+                    pytrends = self._get_pytrends()
                 if pytrends:
                     logger.info(f"Pulling Google Trends for '{keyword}'...")
                     pytrends.build_payload([keyword], cat=0, timeframe=f"{start_date} {datetime.now().strftime('%Y-%m-%d')}")
@@ -70,10 +87,11 @@ class AltDataClient:
                 wiki_start = start_date.replace("-", "")
                 wiki_end = datetime.now().strftime("%Y%m%d")
                 
-                logger.info(f"Pulling Wiki Pageviews for '{keyword}'...")
+                wiki_entity = WIKI_MAPPING.get(ticker, keyword)
+                logger.info(f"Pulling Wiki Pageviews for '{wiki_entity}' (original ticker: {ticker})...")
                 # We use 'en.wikipedia' as a proxy for global attention
                 try:
-                    views = pageviewapi.per_article('en.wikipedia', keyword, wiki_start, wiki_end,
+                    views = pageviewapi.per_article('en.wikipedia', wiki_entity, wiki_start, wiki_end,
                                                   access='all-access', agent='all-agents', granularity='daily')
                     
                     wiki_data = []
@@ -84,7 +102,7 @@ class AltDataClient:
                             'ticker': ticker
                         })
                 except Exception as wiki_exc:
-                    logger.warning(f"Wiki fetch failed for {keyword}: {wiki_exc}")
+                    logger.warning(f"Wiki fetch failed for {wiki_entity}: {wiki_exc}")
                     wiki_data = []
                 
                 if wiki_data:
@@ -100,9 +118,10 @@ class AltDataClient:
 
             except Exception as e:
                 if "429" in str(e):
-                    logger.warning("Rate limited by Google Trends. Waiting 60s...")
-                    time.sleep(60)
-                logger.error(f"Failed to fetch Alt Data for {ticker}: {e}")
+                    self.google_rate_limited = True
+                    logger.warning("Google Trends circuit breaker tripped for this cycle. Skipping Trends fetching for remaining tickers.")
+                else:
+                    logger.error(f"Failed to fetch Alt Data for {ticker}: {e}")
 
     def get_merged_alt_data(self, ticker: str) -> pd.DataFrame:
         """Merge trends and views from DuckDB."""
