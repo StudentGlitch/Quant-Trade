@@ -1,0 +1,24 @@
+# Universe and Hyperparameters
+universe:
+  tickers: ['BBCA.JK', 'TLKM.JK', 'ASII.JK', 'BMRI.JK', 'AAPL', 'MSFT', 'NVDA', 'GOOGL']
+  benchmark: '^JKSE'
+
+data:
+  start_date: '2015-01-01'
+  cache_path: 'storage/db/requests_cache.sqlite'
+
+features:
+  rolling_window: 20
+  target_horizon: 5
+
+training:
+  train_start: '2018-01-01'
+  train_end: '2020-12-31'
+  val_start: '2021-01-01'
+  val_end: '2021-12-31'
+  embargo_period: 5
+
+backtest:
+  init_cash: 10000
+  fees: 0.0015
+  slippage: 0.0005
