@@ -8,16 +8,21 @@ class LLMAgentCohort:
     """
     Acts as a Vibe-Enhanced Multi-Agent Swarm (inspired by HKUDS/Vibe-Trading).
     Simulates a team of experts including a Narrative/Vibe analyst.
-    1. The Narrative Analyst: Interprets 'vibes' from Google Trends and retail spikes.
-    2. The Value Contrarian: Challenges momentum if indicators look overextended.
-    3. The Growth Maximizer: Capitalizes on retail attention and trend continuation.
-    4. The Risk Sentinel: Monitors macro fragility (Yield Curve, VIX).
     """
     def __init__(self):
-        # Resolve path to the hermes agent
-        self.hermes_python = Path(__file__).resolve().parent.parent.parent.parent.parent / "hermes-agent" / ".venv" / "Scripts" / "python.exe"
-        self.hermes_cli = Path(__file__).resolve().parent.parent.parent.parent.parent / "hermes-agent" / "cli.py"
+        # PRD 4: Resolve absolute paths for hermes-agent (Bug Fix)
+        # Assuming current file is in quant-engine/src/execution/
+        self.base_dir = Path(__file__).resolve().parent.parent.parent
+        self.workspace_root = self.base_dir.parent
+        
+        self.hermes_python = self.workspace_root / "hermes-agent" / ".venv" / "Scripts" / "python.exe"
+        self.hermes_cli = self.workspace_root / "hermes-agent" / "cli.py"
         self.recent_reflections = "No major mistakes recorded. Swarm is stable."
+
+        if not self.hermes_python.exists():
+            logger.error(f"Hermes Python not found at {self.hermes_python}")
+        if not self.hermes_cli.exists():
+            logger.error(f"Hermes CLI not found at {self.hermes_cli}")
 
     def get_signal_data(self, ticker: str, date: str, macro_context: dict, alt_context: dict, ml_signal: float, reflections: str = "") -> dict:
         """
