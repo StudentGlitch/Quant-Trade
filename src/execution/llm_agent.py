@@ -15,8 +15,7 @@ class LLMAgentCohort:
     """
     def __init__(self):
         # Resolve path to the hermes agent
-        self.hermes_python = Path(__file__).resolve().parent.parent.parent.parent.parent / "hermes-agent" / ".venv" / "Scripts" / "python.exe"
-        self.hermes_cli = Path(__file__).resolve().parent.parent.parent.parent.parent / "hermes-agent" / "cli.py"
+        pass # Paths removed to use python -m
         self.recent_reflections = "No major mistakes recorded. Swarm is stable."
 
     def get_signal_data(self, ticker: str, date: str, macro_context: dict, alt_context: dict, ml_signal: float, reflections: str = "") -> dict:
@@ -52,7 +51,7 @@ class LLMAgentCohort:
 
         try:
             result = subprocess.run(
-                [str(self.hermes_python), str(self.hermes_cli), "-q", prompt],
+                ["python", "-m", "hermes_agent", "-q", prompt],
                 capture_output=True,
                 text=True,
                 timeout=120

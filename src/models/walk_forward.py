@@ -1,6 +1,5 @@
 import pandas as pd
-import numpy as np
-from typing import List, Tuple, Generator
+from typing import Tuple, Generator
 
 class PurgedWalkForwardCV:
     """
