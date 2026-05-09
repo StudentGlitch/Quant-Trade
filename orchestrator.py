@@ -61,9 +61,9 @@ class QuantOrchestrator:
         logger.info("Starting Phase 1: Data Ingestion")
         tickers = self.config['universe']['tickers']
         start_date = self.config['data']['start_date']
-
+        
         # 1. Core data fetch (Critical)
-        self.yf_client.fetch_and_store(tickers, start_date)
+        # Note: OHLCV data is now fetched via Phase 0.4 (Async Queue Consumption) into Parquet
         self.macro_client.fetch_and_store(start_date)
 
         # 2. Alternative data fetch (Non-Critical, PRD Bug Fix)
@@ -261,28 +261,42 @@ class QuantOrchestrator:
         portfolio = engine.run(close_prices, signals)
         engine.report(portfolio)
 
-    def _get_recent_reflections(self, ticker: str, limit: int = 5) -> str:
+    def _get_all_recent_reflections(self, tickers: list[str], limit: int = 5) -> dict[str, str]:
         """
-        Extract 'reflections' from the historical paper_trades ledger (PRD 7 Phase 5.3).
-        Analyzes past signals that resulted in loss/wrong direction.
+        Bulk extract 'reflections' from the historical paper_trades ledger for all active tickers.
+        Eliminates N+1 query overhead.
         """
         try:
-            # Note: In a real system, we'd join with actual returns.
-            # For this MVP, we look for past trades that were CLOSED or have notes.
-            # Since this is a fresh DB, we fallback to a structured message.
-            query = f"SELECT signal_date, final_blended_signal, final_direction FROM paper_trades WHERE ticker = '{ticker}' ORDER BY signal_date DESC LIMIT {limit}"
+            # We use a window function in DuckDB to get top N rows per ticker
+            tickers_str = ", ".join([f"'{t}'" for t in tickers])
+            query = f"""
+                WITH RankedTrades AS (
+                    SELECT ticker, signal_date, final_blended_signal, final_direction,
+                           ROW_NUMBER() OVER(PARTITION BY ticker ORDER BY signal_date DESC) as rn
+                    FROM paper_trades
+                    WHERE ticker IN ({tickers_str})
+                )
+                SELECT ticker, signal_date, final_blended_signal, final_direction
+                FROM RankedTrades
+                WHERE rn <= {limit}
+                ORDER BY ticker, signal_date DESC
+            """
             past_trades = self.repo.con.execute(query).df()
-
+            
             if past_trades.empty:
-                return ""
-
-            reflections = "HISTORICAL PERFORMANCE SUMMARY:\n"
-            for _, row in past_trades.iterrows():
-                reflections += f"- Date: {row['signal_date']}, Signal: {row['final_blended_signal']:.2f}, Direction: {row['final_direction']}\n"
-
-            return reflections
-        except Exception:
-            return ""
+                return {}
+            
+            reflections_map = {}
+            for ticker, group in past_trades.groupby('ticker'):
+                reflections = "HISTORICAL PERFORMANCE SUMMARY:\n"
+                for _, row in group.iterrows():
+                    reflections += f"- Date: {row['signal_date']}, Signal: {row['final_blended_signal']:.2f}, Direction: {row['final_direction']}\n"
+                reflections_map[str(ticker)] = reflections
+                
+            return reflections_map
+        except Exception as e:
+            logger.warning(f"Failed to fetch bulk reflections: {e}")
+            return {}
 
     def run_paper_trade(self, model_path: str, feature_cols: list[str]) -> None:
         """Phase 5: Autonomous Paper Trading (The ATLAS Janus Loop with Vibe-Trading reasoning)."""
@@ -310,6 +324,12 @@ class QuantOrchestrator:
 
         # 2. ML Baseline Inference
         latest_df['ml_pred'] = model.predict(latest_df[feature_cols])
+        
+        # 2.1 Bulk Fetch Reflections (Optimized)
+        tickers = latest_df['ticker'].astype(str).tolist()
+        reflections_map = self._get_all_recent_reflections(tickers)
+        
+        trades_to_insert = []
 
         for _, row in latest_df.iterrows():
             ticker = str(row['ticker'])
@@ -325,9 +345,9 @@ class QuantOrchestrator:
             }
 
             # 3. Macro Synthesis & Reflection Ingestion
-            reflections = self._get_recent_reflections(ticker)
+            reflections = reflections_map.get(ticker, "")
 
-            # Vibe-Enhanced Swarm Signal
+            # Vibe-Enhanced Swarm Signal (Sequential Bottleneck)
             llm_res = self.llm_agent.get_signal_data(ticker, str(latest_date), latest_macro, alt_context, ml_signal, reflections)
             llm_signal = llm_res["final_signal"]
             vibe = llm_res["vibe"]
@@ -337,7 +357,7 @@ class QuantOrchestrator:
             signals = {"ML_XGBoost": ml_signal, "LLM_Macro": llm_signal}
             final_signal = self.janus.blend_signals(signals)
 
-            # 5. Ledger Execution
+            # 5. Ledger Execution Prep
             w_ml = self.janus.cohort_weights["ML_XGBoost"]
             w_llm = self.janus.cohort_weights["LLM_Macro"]
 
@@ -357,21 +377,27 @@ class QuantOrchestrator:
                     final_blended_signal=final_signal,
                     direction=direction
                 )
+                
+                trades_to_insert.append((
+                    str(uuid.uuid4()), trade_sig.ticker, trade_sig.signal_date, 
+                    trade_sig.ml_cohort_signal, trade_sig.llm_cohort_signal, 
+                    trade_sig.ml_weight, trade_sig.llm_weight,
+                    trade_sig.final_blended_signal, trade_sig.direction, vibe, cot, 'OPEN'
+                ))
+                logger.info(f"[{ticker}] CIO Final Signal: {final_signal:.2f} | Vibe: {vibe} -> {direction}")
             except ValidationError as ve:
                 logger.error(f"TradeSignal validation failed for {ticker}: {ve}")
                 continue
 
-            self.repo.con.execute("""
-                INSERT INTO paper_trades
-                (trade_id, ticker, signal_date, ml_signal, llm_signal, ml_weight, llm_weight,
+        # 6. Bulk Insert to DB
+        if trades_to_insert:
+            logger.info(f"Bulk inserting {len(trades_to_insert)} paper trades...")
+            self.repo.con.executemany("""
+                INSERT INTO paper_trades 
+                (trade_id, ticker, signal_date, ml_signal, llm_signal, ml_weight, llm_weight, 
                  final_blended_signal, final_direction, vibe, chain_of_thought, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN')
-            """, [uuid.uuid4(), trade_sig.ticker, trade_sig.signal_date, 
-                  trade_sig.ml_cohort_signal, trade_sig.llm_cohort_signal, 
-                  trade_sig.ml_weight, trade_sig.llm_weight,
-                  trade_sig.final_blended_signal, trade_sig.direction, vibe, cot])
-
-            logger.info(f"[{ticker}] CIO Final Signal: {final_signal:.2f} | Vibe: {vibe} -> {direction}")
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, trades_to_insert)
 
         logger.info("Autonomous Paper Trading iteration complete.")
 
