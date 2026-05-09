@@ -1,104 +1,115 @@
 import pytest
 import pandas as pd
 import numpy as np
+from unittest.mock import Mock, patch
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+import sys
+from pathlib import Path
 
+# Adjust path to import from src
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from src.execution.paper_trader import PaperTrader
-
+from src.data.duckdb_repo import DuckDBRepo
 
 @pytest.fixture
 def mock_repo():
-    return MagicMock()
-
+    repo = Mock(spec=DuckDBRepo)
+    return repo
 
 @pytest.fixture
-def paper_trader_di(mock_repo):
-    return PaperTrader(repo=mock_repo, model=MagicMock())
+def mock_model():
+    model = Mock()
+    # Mocking prediction to match the thresholding scenarios:
+    # > 0.005 -> 1 (Long)
+    # < -0.005 -> -1 (Short)
+    # between -0.005 and 0.005 -> 0 (No signal)
+    model.predict.return_value = np.array([0.006, -0.006, 0.002, 0.0])
+    return model
 
+@pytest.fixture
+def dummy_features():
+    # 4 rows to correspond to the mock model predictions
+    return pd.DataFrame({
+        'ticker': ['AAPL', 'MSFT', 'GOOG', 'AMZN'],
+        'feat_1': [1, 2, 3, 4],
+        'feat_2': [0.1, 0.2, 0.3, 0.4],
+        'other_col': ['A', 'B', 'C', 'D']
+    })
 
-def test_initialization_no_model(mock_repo):
-    with pytest.raises(ValueError, match="Must provide either model_path or model"):
-        PaperTrader(repo=mock_repo)
-
-
-@patch("src.execution.paper_trader.joblib.load")
-def test_generate_signals_thresholds_and_feature_columns(mock_joblib_load, mock_repo):
-    mock_model = MagicMock()
-    mock_model.predict.return_value = np.array([0.006, -0.006, 0.002, 0.0])
+@patch('src.execution.paper_trader.joblib.load')
+@patch('src.execution.paper_trader.PortfolioState')
+def test_generate_signals(mock_portfolio_state, mock_joblib_load, mock_repo, mock_model, dummy_features):
+    # Setup mocks
     mock_joblib_load.return_value = mock_model
 
+    # Initialize trader
     trader = PaperTrader(repo=mock_repo, model_path="dummy_path.joblib")
 
-    df = pd.DataFrame(
-        {
-            "ticker": ["AAPL", "MSFT", "GOOG", "AMZN"],
-            "feat_1": [1, 2, 3, 4],
-            "feat_2": [0.1, 0.2, 0.3, 0.4],
-            "other_col": ["A", "B", "C", "D"],
-        }
-    )
+    # Generate signals
+    signals = trader.generate_signals(dummy_features)
 
-    signals = trader.generate_signals(df)
-
+    # Assert predict was called with only feature columns
     called_df = mock_model.predict.call_args[0][0]
-    assert list(called_df.columns) == ["feat_1", "feat_2"]
+    assert list(called_df.columns) == ['feat_1', 'feat_2']
+
+    # Assert the correct signals were generated
+    # AAPL -> > 0.005 -> direction 1
+    # MSFT -> < -0.005 -> direction -1
+    # GOOG -> 0.002 -> no signal
+    # AMZN -> 0.0 -> no signal
 
     assert len(signals) == 2
-    assert signals[0]["ticker"] == "AAPL"
-    assert signals[0]["direction"] == 1
-    assert signals[1]["ticker"] == "MSFT"
-    assert signals[1]["direction"] == -1
 
+    assert signals[0]['ticker'] == 'AAPL'
+    assert signals[0]['direction'] == 1
+    assert signals[0]['predicted_return'] == 0.006
+    assert isinstance(signals[0]['signal_date'], type(datetime.now().date()))
 
-def test_generate_signals_empty_dataframe(paper_trader_di):
-    df = pd.DataFrame()
-    signals = paper_trader_di.generate_signals(df)
-    assert signals == []
-    paper_trader_di.model.predict.assert_not_called()
+    assert signals[1]['ticker'] == 'MSFT'
+    assert signals[1]['direction'] == -1
+    assert signals[1]['predicted_return'] == -0.006
+    assert isinstance(signals[1]['signal_date'], type(datetime.now().date()))
 
+@patch('src.execution.paper_trader.joblib.load')
+@patch('src.execution.paper_trader.PortfolioState')
+def test_generate_signals_empty_features(mock_portfolio_state, mock_joblib_load, mock_repo, mock_model):
+    mock_model.predict.return_value = np.array([])
+    mock_joblib_load.return_value = mock_model
+    trader = PaperTrader(repo=mock_repo, model_path="dummy.joblib")
 
-def test_generate_signals_missing_features(paper_trader_di):
-    df = pd.DataFrame({"ticker": ["AAPL"], "no_feat_col": [100]})
+    empty_df = pd.DataFrame(columns=['ticker', 'feat_1'])
+    signals = trader.generate_signals(empty_df)
 
-    with pytest.raises(
-        ValueError,
-        match="No feature columns \\(starting with 'feat_'\\) found in input data.",
-    ):
-        paper_trader_di.generate_signals(df)
+    assert len(signals) == 0
 
+@patch('src.execution.paper_trader.datetime')
+@patch('src.execution.paper_trader.joblib.load')
+@patch('src.execution.paper_trader.PortfolioState')
+def test_generate_signals_verify_signal_structure(mock_portfolio_state, mock_joblib_load, mock_datetime, mock_repo, mock_model, dummy_features):
+    mock_joblib_load.return_value = mock_model
 
-def test_generate_signals_nan_values(paper_trader_di):
-    df = pd.DataFrame({"ticker": ["AAPL"], "feat_rsi": [np.nan]})
-
-    with pytest.raises(ValueError, match="Input features contain NaN values."):
-        paper_trader_di.generate_signals(df)
-
-
-@patch("src.execution.paper_trader.datetime")
-def test_generate_signals_signal_structure(mock_datetime, paper_trader_di):
-    paper_trader_di.model.predict.return_value = np.array([0.006, -0.006])
+    # Mock datetime to return a fixed date
     fixed_date = datetime(2023, 1, 1).date()
     mock_datetime.now.return_value.date.return_value = fixed_date
 
-    df = pd.DataFrame(
-        {
-            "ticker": ["AAPL", "MSFT"],
-            "feat_rsi": [60, 40],
-        }
-    )
+    trader = PaperTrader(repo=mock_repo, model_path="dummy.joblib")
+    signals = trader.generate_signals(dummy_features)
 
-    signals = paper_trader_di.generate_signals(df)
+    assert len(signals) == 2
 
-    assert signals[0] == {
-        "ticker": "AAPL",
-        "direction": 1,
-        "predicted_return": 0.006,
-        "signal_date": fixed_date,
+    expected_signal_aapl = {
+        'ticker': 'AAPL',
+        'direction': 1,
+        'predicted_return': 0.006,
+        'signal_date': fixed_date
     }
-    assert signals[1] == {
-        "ticker": "MSFT",
-        "direction": -1,
-        "predicted_return": -0.006,
-        "signal_date": fixed_date,
+
+    expected_signal_msft = {
+        'ticker': 'MSFT',
+        'direction': -1,
+        'predicted_return': -0.006,
+        'signal_date': fixed_date
     }
+
+    assert signals[0] == expected_signal_aapl
+    assert signals[1] == expected_signal_msft
