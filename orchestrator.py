@@ -2,7 +2,7 @@ import collections
 import collections.abc
 import sys
 from pathlib import Path
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple
 
 # Python 3.12 Compatibility Patch for attrdict/pageviewapi
 if not hasattr(collections, 'Mapping'):
@@ -20,6 +20,7 @@ if str(BASE_DIR) not in sys.path:
 import yaml
 from loguru import logger
 import pandas as pd
+import numpy as np
 from datetime import datetime
 
 from src.data.duckdb_repo import DuckDBRepo
@@ -260,8 +261,8 @@ class QuantOrchestrator:
                 return ""
 
             reflections = "HISTORICAL PERFORMANCE SUMMARY:\n"
-            for _, row in past_trades.iterrows():
-                reflections += f"- Date: {row['signal_date']}, Signal: {row['final_blended_signal']:.2f}, Direction: {row['final_direction']}\n"
+            for row in past_trades.itertuples():
+                reflections += f"- Date: {getattr(row, 'signal_date', '')}, Signal: {getattr(row, 'final_blended_signal', 0.0):.2f}, Direction: {getattr(row, 'final_direction', 0)}\n"
 
             return reflections
         except Exception:
@@ -294,11 +295,12 @@ class QuantOrchestrator:
         # 2. ML Baseline Inference
         latest_df['ml_pred'] = model.predict(latest_df[feature_cols])
 
-        for _, row in latest_df.iterrows():
+        # Vectorized statistical signal computation
+        latest_df['ml_signal'] = np.clip(latest_df['ml_pred'] * 10, -1.0, 1.0).astype(float)
+
+        for row in latest_df.to_dict('records'):
             ticker = str(row['ticker'])
-            ml_pred = row['ml_pred']
-            # Statistical signal [-1.0, 1.0]
-            ml_signal = float(np.clip(ml_pred * 10, -1.0, 1.0))
+            ml_signal = row['ml_signal']
 
             # Alt context
             alt_context = {
