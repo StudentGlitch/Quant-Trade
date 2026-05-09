@@ -1,23 +1,30 @@
 import subprocess
 import json
 from loguru import logger
+from pathlib import Path
 from ..utils.json_utils import QuantJSONEncoder
 
 class LLMAgentCohort:
     """
     Acts as a Vibe-Enhanced Multi-Agent Swarm (inspired by HKUDS/Vibe-Trading).
     Simulates a team of experts including a Narrative/Vibe analyst.
-    1. The Narrative Analyst: Interprets 'vibes' from Google Trends and retail spikes.
-    2. The Value Contrarian: Challenges momentum if indicators look overextended.
-    3. The Growth Maximizer: Capitalizes on retail attention and trend continuation.
-    4. The Risk Sentinel: Monitors macro fragility (Yield Curve, VIX).
     """
     def __init__(self):
-        # Resolve path to the hermes agent
-        pass # Paths removed to use python -m
+        # PRD 4: Resolve absolute paths for hermes-agent (Bug Fix / v1.2 Scalable)
+        self.base_dir = Path(__file__).resolve().parent.parent.parent
+        self.workspace_root = self.base_dir.parent
+        
+        self.hermes_python = self.workspace_root / "hermes-agent" / ".venv" / "Scripts" / "python.exe"
+        self.hermes_cli = self.workspace_root / "hermes-agent" / "cli.py"
         self.recent_reflections = "No major mistakes recorded. Swarm is stable."
 
+        if not self.hermes_python.exists():
+            logger.error(f"Hermes Python not found at {self.hermes_python}")
+        if not self.hermes_cli.exists():
+            logger.error(f"Hermes CLI not found at {self.hermes_cli}")
+
     def _build_prompt(self, ticker: str, date: str, macro_context: dict, alt_context: dict, ml_signal: float, reflections: str) -> str:
+        """Helper to construct the structured LLM prompt (Refactored by Jules)."""
         macro_str = json.dumps(macro_context, cls=QuantJSONEncoder)
         alt_str = json.dumps(alt_context, cls=QuantJSONEncoder)
 
@@ -37,6 +44,7 @@ class LLMAgentCohort:
         )
 
     def _parse_swarm_response(self, output: str, ml_signal: float, ticker: str, default_res: dict) -> dict:
+        """Helper to parse and validate structured JSON from the LLM (Refactored by Jules)."""
         if "```json" in output:
             output = output.split("```json")[1].split("```")[0].strip()
         elif "```" in output:
@@ -76,8 +84,9 @@ class LLMAgentCohort:
         }
 
         try:
+            # Use absolute paths for the local hermes agent
             result = subprocess.run(
-                ["python", "-m", "hermes_agent", "-q", prompt],
+                [str(self.hermes_python), str(self.hermes_cli), "-q", prompt],
                 capture_output=True,
                 text=True,
                 timeout=120
