@@ -7,31 +7,16 @@ from ..data.duckdb_repo import DuckDBRepo
 from .portfolio_state import PortfolioState
 
 class PaperTrader:
-    def __init__(self, repo: DuckDBRepo, model_path: str = None, model=None):
+    def __init__(self, repo: DuckDBRepo, model_path: str):
         self.repo = repo
-        if model is not None:
-            self.model = model
-        elif model_path is not None:
-            self.model = joblib.load(model_path)
-        else:
-            raise ValueError("Must provide either model_path or model")
+        self.model = joblib.load(model_path)
         self.state = PortfolioState(repo)
 
     def generate_signals(self, latest_features: pd.DataFrame) -> List[Dict]:
         """Perform inference and generate signals (PRD 7 Phase 5.2)."""
         logger.info("Generating signals for paper trading...")
         
-        if latest_features is None or latest_features.empty:
-            logger.warning("Empty features provided. Returning empty signals.")
-            return []
-
         feature_cols = [col for col in latest_features.columns if col.startswith('feat_')]
-        if not feature_cols:
-            raise ValueError("No feature columns (starting with 'feat_') found in input data.")
-
-        if latest_features[feature_cols].isna().any().any():
-            raise ValueError("Input features contain NaN values.")
-
         preds = self.model.predict(latest_features[feature_cols])
         
         signals = []
