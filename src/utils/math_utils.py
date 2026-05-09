@@ -1,6 +1,4 @@
-import numpy as np
 import pandas as pd
-from typing import Optional
 
 def check_stationarity(series: pd.Series) -> bool:
     """Placeholder for ADF test logic if needed for PRD 5."""

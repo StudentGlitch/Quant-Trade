@@ -29,7 +29,7 @@ An autonomous, headless quantitative research and paper-trading engine that brid
 
 1. Install dependencies:
    ```bash
-   pip install duckdb pandas numpy xgboost optuna vectorbt loguru requests-cache pandas-datareader pytrends pageviewapi scrapegraphai psutil pyyaml
+   pip install duckdb pandas numpy xgboost optuna vectorbt loguru pandas-datareader pytrends pageviewapi scrapegraphai psutil pyyaml
    ```
 2. Run the pipeline:
    ```bash

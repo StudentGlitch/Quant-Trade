@@ -1,11 +1,11 @@
 import yfinance as yf
 import pandas as pd
 from loguru import logger
-from typing import List, Optional
+from typing import List
 from .duckdb_repo import DuckDBRepo
 
 class YFinanceClient:
-    def __init__(self, repo: DuckDBRepo, cache_path: str = "storage/db/requests_cache.sqlite"):
+    def __init__(self, repo: DuckDBRepo):
         self.repo = repo
         # Removed requests_cache as it conflicts with curl_cffi needed for YF anti-bot
 

@@ -1,6 +1,5 @@
 import psutil
 import os
-import sys
 from loguru import logger
 
 def kill_zombie_locks(db_path: str = None):
