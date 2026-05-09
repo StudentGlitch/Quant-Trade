@@ -1,15 +1,16 @@
--- Core Price Data
-CREATE TABLE IF NOT EXISTS ohlcv_daily (
-    ticker VARCHAR,
-    date DATE,
-    open DOUBLE,
-    high DOUBLE,
-    low DOUBLE,
-    close DOUBLE,
-    adj_close DOUBLE,
-    volume BIGINT,
-    PRIMARY KEY (ticker, date)
+-- Analytical Metadata (PRD v1.2)
+CREATE TABLE IF NOT EXISTS idx_metadata (
+    ticker VARCHAR PRIMARY KEY,
+    company_name VARCHAR,
+    sector VARCHAR,
+    index_membership VARCHAR[],
+    status VARCHAR DEFAULT 'ACTIVE',
+    avg_daily_volume BIGINT,
+    last_updated TIMESTAMP
 );
+
+-- Drop legacy monolithic price data
+DROP TABLE IF EXISTS ohlcv_daily;
 
 -- Macro Economic Indicators
 CREATE TABLE IF NOT EXISTS macro_data (

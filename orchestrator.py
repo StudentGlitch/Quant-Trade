@@ -18,6 +18,7 @@ if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 import yaml
+import numpy as np
 from loguru import logger
 import pandas as pd
 from datetime import datetime
@@ -36,6 +37,8 @@ from src.models.xgb_trainer import XGBTrainer
 from src.execution.vectorbt_engine import VectorBTEngine
 from src.models.janus_blender import JanusBlender
 from src.execution.llm_agent import LLMAgentCohort
+from src.utils.contracts import TradeSignal
+from pydantic import ValidationError
 
 class QuantOrchestrator:
     def __init__(self, repo: DuckDBRepo, config_path: str = None):
@@ -101,15 +104,29 @@ class QuantOrchestrator:
         """Phase 2: Feature Engineering & Target Labelling (PRD 7)."""
         logger.info("Starting Phase 2: Feature Engineering")
 
-        all_tickers = self.repo.con.execute("SELECT DISTINCT ticker FROM ohlcv_daily").df()['ticker'].tolist()
+        # PRD Phase 0.5: Query active tickers from new analytical metadata
+        try:
+            all_tickers = self.repo.con.execute("SELECT DISTINCT ticker FROM idx_metadata WHERE status = 'ACTIVE'").df()['ticker'].tolist()
+        except Exception:
+            logger.warning("idx_metadata table not found. Using fallback universe.")
+            all_tickers = self.config['universe']['tickers']
 
         # Load all data into memory upfront to avoid N+1 queries
-        logger.info("Loading all OHLCV data into memory...")
-        all_df = self.yf_client.get_all_ohlcv()
+        logger.info("Loading all OHLCV data into memory from Parquet Hive...")
+        # PRD Phase 0.5: Read from Parquet directory
+        all_df = self.repo.get_parquet_data(BASE_DIR)
+        
+        if all_df.empty:
+            logger.error("No Parquet data found. Run the Async Queue Consumer first.")
+            return
+            
         logger.info("Loading all Alternative data into memory...")
         all_alt_df = self.alt_client.get_all_merged_alt_data()
         logger.info("Loading all Scraped Sentiment data into memory...")
-        all_scraped_df = self.repo.con.execute("SELECT date, ticker, sentiment_score FROM alt_scraped_sentiment").df()
+        try:
+            all_scraped_df = self.repo.con.execute("SELECT date, ticker, sentiment_score FROM alt_scraped_sentiment").df()
+        except Exception:
+            all_scraped_df = pd.DataFrame(columns=['date', 'ticker', 'sentiment_score'])
 
         processed_data = []
 
@@ -328,13 +345,31 @@ class QuantOrchestrator:
             # Threshold: > 0.2 for Long, < -0.2 for Short
             direction = 1 if final_signal > 0.2 else (-1 if final_signal < -0.2 else 0)
 
+            try:
+                # PRD 5.2 Python Data Contracts validation
+                trade_sig = TradeSignal(
+                    ticker=ticker,
+                    signal_date=latest_date,
+                    ml_cohort_signal=ml_signal,
+                    llm_cohort_signal=llm_signal,
+                    ml_weight=w_ml,
+                    llm_weight=w_llm,
+                    final_blended_signal=final_signal,
+                    direction=direction
+                )
+            except ValidationError as ve:
+                logger.error(f"TradeSignal validation failed for {ticker}: {ve}")
+                continue
+
             self.repo.con.execute("""
                 INSERT INTO paper_trades
                 (trade_id, ticker, signal_date, ml_signal, llm_signal, ml_weight, llm_weight,
                  final_blended_signal, final_direction, vibe, chain_of_thought, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN')
-            """, [uuid.uuid4(), ticker, latest_date, ml_signal, llm_signal, w_ml, w_llm,
-                  final_signal, direction, vibe, cot])
+            """, [uuid.uuid4(), trade_sig.ticker, trade_sig.signal_date, 
+                  trade_sig.ml_cohort_signal, trade_sig.llm_cohort_signal, 
+                  trade_sig.ml_weight, trade_sig.llm_weight,
+                  trade_sig.final_blended_signal, trade_sig.direction, vibe, cot])
 
             logger.info(f"[{ticker}] CIO Final Signal: {final_signal:.2f} | Vibe: {vibe} -> {direction}")
 

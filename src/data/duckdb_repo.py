@@ -49,3 +49,23 @@ class DuckDBRepo:
                 logger.info("DuckDB connection closed successfully.")
             except Exception as e:
                 logger.warning(f"Failed to close DuckDB connection cleanly: {e}")
+
+    def get_parquet_data(self, base_dir: Path) -> 'pd.DataFrame':
+        """
+        Query the Hive-partitioned Parquet directory as a virtual table (PRD Phase 0.5).
+        """
+        import pandas as pd
+        parquet_path = str(base_dir / "storage" / "parquet_data" / "ticker=*" / "data.parquet")
+        # Ensure path uses forward slashes for DuckDB globbing
+        parquet_path = parquet_path.replace('\\', '/')
+        
+        try:
+            # Check if any parquets exist yet
+            if not list((base_dir / "storage" / "parquet_data").glob("ticker=*/data.parquet")):
+                return pd.DataFrame()
+                
+            query = f"SELECT * FROM read_parquet('{parquet_path}', hive_partitioning=1)"
+            return self.execute(query).df()
+        except Exception as e:
+            logger.error(f"Error querying parquet data: {e}")
+            return pd.DataFrame()
