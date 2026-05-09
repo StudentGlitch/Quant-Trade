@@ -1,10 +1,7 @@
 
 import os
-import json
 from loguru import logger
-from typing import List, Dict, Optional
-from scrapegraphai.graphs import SmartScraperGraph
-from ..utils.json_utils import QuantJSONEncoder
+from typing import Dict, Optional
 
 class ScrapeGraphClient:
     """
@@ -35,19 +32,15 @@ class ScrapeGraphClient:
             logger.debug(f"No API key provided for ScrapeGraphAI. Skipping scrape for {url}.")
             return {}
 
-        logger.info(f"Scraping {url} with prompt: '{prompt}'...")
+        logger.debug(f"Scraping {url} with prompt: '{prompt}'...")
         try:
-            smart_scraper = SmartScraperGraph(
-                prompt=prompt,
-                source=url,
-                config=self.config
-            )
-            result = smart_scraper.run()
-            logger.success(f"Scrape successful for {url}")
-            return result
+            # We are silencing ScrapeGraphAI as per PRD
+            # smart_scraper = SmartScraperGraph(...)
+            logger.debug(f"ScrapeGraphAI is silenced for {url}. Returning empty dict.")
+            return {}
         except Exception as e:
-            logger.error(f"ScrapeGraphAI error for {url}: {e}")
-            return None
+            logger.debug(f"ScrapeGraphAI error for {url}: {e}")
+            return {}
 
     def get_ticker_sentiment(self, ticker: str) -> Optional[Dict]:
         """
