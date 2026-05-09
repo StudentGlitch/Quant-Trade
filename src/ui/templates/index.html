@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darwinian Swarm Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'JetBrains Mono', monospace; background-color: #050505; color: #00ff41; }
+        .glow { text-shadow: 0 0 10px #00ff41; }
+        .card { background-color: #0a0a0a; border: 1px solid #1a1a1a; }
+        tr:nth-child(even) { background-color: #080808; }
+        .status-long { color: #00ff41; }
+        .status-short { color: #ff3131; }
+        .status-hold { color: #ffb100; }
+    </style>
+</head>
+<body class="p-8">
+    <header class="mb-12">
+        <h1 class="text-4xl font-bold glow mb-2">NOUS HERMES - DARWINIAN QUANT SWARM</h1>
+        <p class="text-zinc-500">Autonomous Market Intelligence Daemon v1.2</p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+        <div class="card p-6 rounded-xl shadow-2xl">
+            <h2 class="text-xl mb-4 text-zinc-400">DATABASE INTEGRITY</h2>
+            <div class="flex justify-between">
+                <span>OHLCV Rows</span>
+                <span class="font-bold text-white">{{ ohlcv_count }}</span>
+            </div>
+            <div class="flex justify-between mt-2">
+                <span>Feature Store</span>
+                <span class="font-bold text-white">{{ feature_count }}</span>
+            </div>
+        </div>
+        <div class="card p-6 rounded-xl shadow-2xl">
+            <h2 class="text-xl mb-4 text-zinc-400">SYSTEM STATUS</h2>
+            <div class="flex items-center gap-2">
+                {% if status == "LIVE" %}
+                    <div class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+                    <span class="text-emerald-500">DAEMON ACTIVE</span>
+                {% else %}
+                    <div class="w-3 h-3 bg-amber-500 rounded-full animate-pulse"></div>
+                    <span class="text-amber-500">DATABASE BUSY (TRAINING)</span>
+                {% endif %}
+            </div>
+            <p class="text-sm mt-4 text-zinc-600">Syncing with origin/master... Architecture: v1.2-Scalable</p>
+        </div>
+    </div>
+
+    <div class="card p-8 rounded-xl shadow-2xl overflow-hidden">
+        <h2 class="text-2xl font-bold mb-6 glow">LATEST TRADE SIGNALS (JANUS BLENDER)</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-zinc-800 text-zinc-500 uppercase text-xs">
+                        <th class="pb-4 px-2">Ticker</th>
+                        <th class="pb-4 px-2">Date</th>
+                        <th class="pb-4 px-2">ML Weight</th>
+                        <th class="pb-4 px-2">LLM Weight</th>
+                        <th class="pb-4 px-2">Signal</th>
+                        <th class="pb-4 px-2">Direction</th>
+                        <th class="pb-4 px-2">Vibe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trade in trades %}
+                    <tr class="border-b border-zinc-900/50 hover:bg-zinc-900/30 transition-colors">
+                        <td class="py-4 px-2 font-bold text-white">{{ trade.ticker }}</td>
+                        <td class="py-4 px-2 text-zinc-400">{{ trade.signal_date }}</td>
+                        <td class="py-4 px-2">{{ "%.2f"|format(trade.ml_weight) }}</td>
+                        <td class="py-4 px-2">{{ "%.2f"|format(trade.llm_weight) }}</td>
+                        <td class="py-4 px-2">{{ "%.2f"|format(trade.final_blended_signal) }}</td>
+                        <td class="py-4 px-2 font-bold {% if trade.final_direction == 1 %}status-long{% elif trade.final_direction == -1 %}status-short{% else %}status-hold{% endif %}">
+                            {% if trade.final_direction == 1 %}LONG{% elif trade.final_direction == -1 %}SHORT{% else %}HOLD{% endif %}
+                        </td>
+                        <td class="py-4 px-2 italic text-zinc-300">{{ trade.vibe }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <footer class="mt-12 text-center text-zinc-700 text-xs">
+        &copy; 2026 StudentGlitch / Quant-Trade. All models running in Paper Trading Mode.
+    </footer>
+</body>
+</html>

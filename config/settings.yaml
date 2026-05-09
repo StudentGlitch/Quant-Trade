@@ -2,6 +2,8 @@
 universe:
   tickers: ['BBCA.JK', 'TLKM.JK', 'ASII.JK', 'BMRI.JK', 'AAPL', 'MSFT', 'NVDA', 'GOOGL']
   benchmark: '^JKSE'
+  min_adv: 1000000
+  min_price: 50.0
 
 data:
   start_date: '2015-01-01'

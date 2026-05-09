@@ -3,6 +3,8 @@ import json
 from loguru import logger
 from pathlib import Path
 from ..utils.json_utils import QuantJSONEncoder
+from ..utils.contracts import LLMSynthesis
+from pydantic import ValidationError
 
 class LLMAgentCohort:
     """
@@ -36,15 +38,14 @@ class LLMAgentCohort:
             f"- Retail Sentiment (Google/Wiki): {alt_str}\n"
             f"- Memory/Reflections: {reflections or self.recent_reflections}\n\n"
             f"TASK:\n"
-            f"1. VIBE ANALYSIS: Have 'The Narrative Analyst' identify the current market 'vibe' (e.g., FOMO, Panic, Boring, Regime Shift).\n"
-            f"2. PERSONA DEBATE: Generate brief conflicting views from 'The Value Contrarian', 'The Growth Maximizer', and 'The Risk Sentinel'.\n"
-            f"3. MIROFISH SIMULATION: Rehearse 3 parallel scenarios (Bull/Bear/Sideways) with probabilities.\n"
-            f"4. FINAL SYNTHESIS: Provide a conviction signal (-1.0 to 1.0) and include your detailed 'Chain of Thought'.\n\n"
-            f"Respond ONLY with valid JSON: {{\"vibe\": \"<string>\", \"swarm_views\": {{...}}, \"simulation\": {{...}}, \"final_signal\": <float>, \"chain_of_thought\": \"...\"}}"
+            f"1. Conduct a brief 'Bull vs Bear Debate'. The Bull must argue for a Long position (+1.0) using the data. The Bear must argue for a Short position (-1.0).\n"
+            f"2. Synthesize the debate, analyze the market regime, and provide a final macro-adjusted conviction signal from -1.0 (Strong Short) to 1.0 (Strong Long).\n\n"
+            f"Respond ONLY with a valid JSON object matching exactly this schema:\n"
+            f"{{\"bull_case\": \"<string>\", \"bear_case\": \"<string>\", \"synthesized_signal\": <float>}}"
         )
 
     def _parse_swarm_response(self, output: str, ml_signal: float, ticker: str, default_res: dict) -> dict:
-        """Helper to parse and validate structured JSON from the LLM (Refactored by Jules)."""
+        """Helper to parse and validate structured JSON from the LLM using Pydantic contracts."""
         if "```json" in output:
             output = output.split("```json")[1].split("```")[0].strip()
         elif "```" in output:
@@ -52,19 +53,20 @@ class LLMAgentCohort:
 
         try:
             response_data = json.loads(output)
-
-            raw_signal = response_data.get('final_signal', ml_signal)
+            
             try:
-                final_signal = float(raw_signal)
-            except (ValueError, TypeError):
-                logger.warning(f"Failed to coerce final_signal '{raw_signal}' to float for {ticker}. Falling back to ML signal.")
-                final_signal = ml_signal
+                # Validate against Pydantic contract (PRD 5.2)
+                synthesis = LLMSynthesis(**response_data)
+                
+                return {
+                    "vibe": "Debate Completed", # Retained for compatibility with orchestrator
+                    "final_signal": synthesis.synthesized_signal,
+                    "chain_of_thought": f"BULL: {synthesis.bull_case} | BEAR: {synthesis.bear_case}"
+                }
+            except ValidationError as ve:
+                logger.error(f"Pydantic Validation Error for {ticker}: {ve}")
+                return default_res
 
-            return {
-                "vibe": response_data.get('vibe', 'Unknown'),
-                "final_signal": final_signal,
-                "chain_of_thought": response_data.get('chain_of_thought', 'No reasoning provided.')
-            }
         except json.JSONDecodeError:
             logger.error(f"Failed to parse swarm JSON for {ticker}. Raw: {output[:200]}")
             return default_res
@@ -89,6 +91,7 @@ class LLMAgentCohort:
                 [str(self.hermes_python), str(self.hermes_cli), "-q", prompt],
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
                 timeout=120
             )
             

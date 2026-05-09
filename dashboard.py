@@ -15,34 +15,40 @@ def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 def get_stats():
-    """Fetch latest statistics from DuckDB."""
-    try:
-        con = duckdb.connect(str(DB_PATH), read_only=True)
-        
-        # 1. Data Ingestion Status
-        ohlcv_count = con.execute("SELECT count(*) FROM ohlcv_daily").fetchone()[0]
-        tickers = con.execute("SELECT count(DISTINCT ticker) FROM ohlcv_daily").fetchone()[0]
-        
-        # 2. Feature Store Status
-        feature_count = con.execute("SELECT count(*) FROM feature_store").fetchone()[0]
-        
-        # 3. Latest Paper Trades (Janus Signals)
-        trades_df = con.execute("""
-            SELECT ticker, signal_date, ml_weight, llm_weight, final_blended_signal, final_direction 
-            FROM paper_trades 
-            ORDER BY signal_date DESC 
-            LIMIT 5
-        """).df()
-        
-        con.close()
-        return {
-            "ohlcv_count": ohlcv_count,
-            "tickers": tickers,
-            "feature_count": feature_count,
-            "latest_trades": trades_df
-        }
-    except Exception as e:
-        return {"error": str(e)}
+    """Fetch latest statistics from DuckDB with retries for file locks."""
+    retries = 3
+    for i in range(retries):
+        try:
+            con = duckdb.connect(str(DB_PATH), read_only=True)
+            
+            # 1. Data Ingestion Status
+            ohlcv_count = con.execute("SELECT count(*) FROM ohlcv_daily").fetchone()[0]
+            tickers = con.execute("SELECT count(DISTINCT ticker) FROM ohlcv_daily").fetchone()[0]
+            
+            # 2. Feature Store Status
+            feature_count = con.execute("SELECT count(*) FROM feature_store").fetchone()[0]
+            
+            # 3. Latest Paper Trades (Janus Signals)
+            trades_df = con.execute("""
+                SELECT ticker, signal_date, ml_weight, llm_weight, final_blended_signal, final_direction 
+                FROM paper_trades 
+                ORDER BY signal_date DESC 
+                LIMIT 5
+            """).df()
+            
+            con.close()
+            return {
+                "ohlcv_count": ohlcv_count,
+                "tickers": tickers,
+                "feature_count": feature_count,
+                "latest_trades": trades_df,
+                "locked": False
+            }
+        except Exception as e:
+            if "used by another process" in str(e).lower() and i < retries - 1:
+                time.sleep(1)
+                continue
+            return {"error": str(e), "locked": "used by another process" in str(e).lower()}
 
 def run_dashboard():
     """Main dashboard loop."""
@@ -51,13 +57,16 @@ def run_dashboard():
         clear_screen()
         
         print("="*60)
-        print(f" ⚕ NOUS HERMES - DARWINIAN QUANT SWARM MONITOR ⚕")
+        print(f" DARWINIAN QUANT SWARM MONITOR ")
         print(f" Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("="*60)
         
-        if "error" in stats:
+        if stats.get("locked"):
+            print(f" [!] DATABASE BUSY (TRAINING IN PROGRESS)")
+            print("     The swarm is currently writing to the ledger.")
+            print("     Retrying automatically...")
+        elif "error" in stats:
             print(f" [!] Error connecting to DuckDB: {stats['error']}")
-            print("     (The engine might be currently writing to the database)")
         else:
             print(f" [DATA] Tickers Tracked: {stats['tickers']}")
             print(f" [DATA] OHLCV Rows:      {stats['ohlcv_count']:,}")
