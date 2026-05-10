@@ -1,0 +1,9 @@
+Fallback solver output (Hermes disabled or unavailable):
+- Review task URL: https://github.com/inderjotpujara/cursor-thief/issues/6
+- Reproduce issue locally.
+- Implement minimal fix scoped to root cause.
+- Add/adjust tests for regression coverage.
+- Prepare concise PR summary with risk notes.
+
+Original task description:
+GitHub Issue: Export local heist stats as JSON from the popup

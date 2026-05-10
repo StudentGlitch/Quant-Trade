@@ -1,0 +1,9 @@
+Fallback solver output (Hermes disabled or unavailable):
+- Review task URL: https://github.com/Duongk46/beginner_auto/issues/160
+- Reproduce issue locally.
+- Implement minimal fix scoped to root cause.
+- Add/adjust tests for regression coverage.
+- Prepare concise PR summary with risk notes.
+
+Original task description:
+GitHub Issue: Achievement Helper: Issue 1778126007432

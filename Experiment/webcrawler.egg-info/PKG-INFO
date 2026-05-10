@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: webcrawler
+Version: 0.1.0
+Summary: IDX annual report crawler and downloader
+Requires-Python: >=3.9
+Requires-Dist: requests>=2.31.0
+Requires-Dist: playwright>=1.52.0
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

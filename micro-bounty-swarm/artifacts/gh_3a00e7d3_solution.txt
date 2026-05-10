@@ -1,0 +1,9 @@
+Fallback solver output (Hermes disabled or unavailable):
+- Review task URL: https://github.com/divinevideo/divine-mobile/issues/4063
+- Reproduce issue locally.
+- Implement minimal fix scoped to root cause.
+- Add/adjust tests for regression coverage.
+- Prepare concise PR summary with risk notes.
+
+Original task description:
+GitHub Issue: Localize hardcoded semantic labels in feed overlay and video item

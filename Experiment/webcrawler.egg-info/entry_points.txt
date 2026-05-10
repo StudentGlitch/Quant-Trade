@@ -1,0 +1,2 @@
+[console_scripts]
+idx-annual-reports = webcrawler.cli:main

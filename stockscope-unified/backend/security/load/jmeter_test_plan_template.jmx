@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Stockscope Unified Defensive Load Plan">
+      <stringProp name="TestPlan.comments">Staging-only defensive load profile with rollback-friendly limits.</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="BASE_URL" elementType="Argument">
+            <stringProp name="Argument.name">BASE_URL</stringProp>
+            <stringProp name="Argument.value">http://localhost:8000</stringProp>
+          </elementProp>
+          <elementProp name="AUTH_TOKEN" elementType="Argument">
+            <stringProp name="Argument.name">AUTH_TOKEN</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Baseline Group">
+        <stringProp name="ThreadGroup.on_sample_error">stoptest</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">-1</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">20</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">120</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">900</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /">
+          <stringProp name="HTTPSampler.domain">${__BeanShell(${BASE_URL}.replace('http://','').replace('https://','').split(':')[0],)}</stringProp>
+          <stringProp name="HTTPSampler.port">${__BeanShell(${BASE_URL}.contains(':') ? ${BASE_URL}.split(':')[2] : '',)}</stringProp>
+          <stringProp name="HTTPSampler.protocol">${__BeanShell(${BASE_URL}.startsWith('https') ? 'https' : 'http',)}</stringProp>
+          <stringProp name="HTTPSampler.path">/</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree />
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/v1/ticker/BBCA/live">
+          <stringProp name="HTTPSampler.domain">${__BeanShell(${BASE_URL}.replace('http://','').replace('https://','').split(':')[0],)}</stringProp>
+          <stringProp name="HTTPSampler.port">${__BeanShell(${BASE_URL}.contains(':') ? ${BASE_URL}.split(':')[2] : '',)}</stringProp>
+          <stringProp name="HTTPSampler.protocol">${__BeanShell(${BASE_URL}.startsWith('https') ? 'https' : 'http',)}</stringProp>
+          <stringProp name="HTTPSampler.path">/api/v1/ticker/BBCA/live</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree />
+        <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Status 2xx/3xx Assertion">
+          <collectionProp name="Asserion.test_strings">
+            <stringProp name="1">2\d\d|3\d\d</stringProp>
+          </collectionProp>
+          <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+          <boolProp name="Assertion.assume_success">false</boolProp>
+          <intProp name="Assertion.test_type">2</intProp>
+        </ResponseAssertion>
+        <hashTree />
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

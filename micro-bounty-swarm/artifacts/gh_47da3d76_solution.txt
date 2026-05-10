@@ -1,0 +1,9 @@
+Fallback solver output (Hermes disabled or unavailable):
+- Review task URL: https://github.com/DimitriFrischmann/Thicket/issues/78
+- Reproduce issue locally.
+- Implement minimal fix scoped to root cause.
+- Add/adjust tests for regression coverage.
+- Prepare concise PR summary with risk notes.
+
+Original task description:
+GitHub Issue: API reference for the sequence-masking utility is non-existent

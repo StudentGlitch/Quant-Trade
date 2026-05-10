@@ -1,0 +1,48 @@
+# Logs
+*.log
+swarm_daemon_output.log
+medic_daemon_output.log
+swarm_launcher_final.log
+medic_daemon_final.log
+local_swarm_launcher.log
+local_medic_daemon.log
+local_swarm_run_v2.log
+local_medic_run_v2.log
+local_swarm_sqlite.log
+local_medic_sqlite.log
+local_swarm_sqlite_v2.log
+local_medic_sqlite_v2.log
+
+# Databases
+*.db
+storage/db/
+test.db
+
+# Data
+storage/parquet_data/
+quant-engine/storage/parquet_data/
+storage/artifacts/
+
+# Python
+__pycache__/
+.venv/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,29 @@
+{
+  "swarmId": "swarm-mooano4u",
+  "objective": "Deep dive into stockscope (Next.js frontend) and StockscopeV2 (Monorepo with crawlers and institutional terminal designs). Compare architectures, find synergy, and propose a combined system that leverages V2's robust data pipeline with V1's user-facing features.",
+  "strategy": "research",
+  "status": "initialized",
+  "agents": 7,
+  "agentPlan": [
+    {
+      "role": "Coordinator",
+      "type": "coordinator",
+      "count": 1,
+      "purpose": "Research coordination"
+    },
+    {
+      "role": "Researcher",
+      "type": "researcher",
+      "count": 4,
+      "purpose": "Data gathering"
+    },
+    {
+      "role": "Analyst",
+      "type": "analyst",
+      "count": 2,
+      "purpose": "Analysis and synthesis"
+    }
+  ],
+  "startedAt": "2026-05-02T12:04:35.148Z",
+  "parallel": true
+}

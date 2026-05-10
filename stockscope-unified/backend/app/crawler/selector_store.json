@@ -1,0 +1,43 @@
+{
+  "idx": {
+    "company_profile": {
+      "company_name": "h1.company-name",
+      "sector": ".company-sector span",
+      "address": ".company-address p",
+      "phone": ".company-phone a",
+      "website": ".company-website a"
+    },
+    "financial_summary": {
+      "revenue": "td[data-field='revenue']",
+      "net_income": "td[data-field='netIncome']",
+      "total_assets": "td[data-field='totalAssets']",
+      "total_equity": "td[data-field='totalEquity']"
+    },
+    "executives": {
+      "name": ".executive-name",
+      "position": ".executive-position",
+      "education": ".executive-education"
+    }
+  },
+  "yfinance": {
+    "financials": {
+      "revenue": "td[data-field='totalRevenue']",
+      "net_income": "td[data-field='netIncome']",
+      "eps": "td[data-field='trailingEps']"
+    }
+  },
+  "stockbit": {
+    "company_profile": {
+      "company_name": ".company-header h1",
+      "sector": ".stock-sector-label",
+      "market_cap": ".market-cap-value"
+    }
+  },
+  "bisnis": {
+    "news": {
+      "headline": "h1.article-title",
+      "content": ".article-content",
+      "published_at": "time.article-date"
+    }
+  }
+}

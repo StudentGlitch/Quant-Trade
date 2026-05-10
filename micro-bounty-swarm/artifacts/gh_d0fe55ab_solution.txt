@@ -1,0 +1,9 @@
+Fallback solver output (Hermes disabled or unavailable):
+- Review task URL: https://github.com/kleinpanic/CS3704-Canvas-Project/issues/179
+- Reproduce issue locally.
+- Implement minimal fix scoped to root cause.
+- Add/adjust tests for regression coverage.
+- Prepare concise PR summary with risk notes.
+
+Original task description:
+GitHub Issue: chore: add executable bit to examples/quickstart-tui.sh and examples/contribute-data.sh

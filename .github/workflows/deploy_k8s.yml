@@ -1,0 +1,80 @@
+name: Deploy Darwinian Quant Swarm to K8s
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Run Global Test Orchestrator
+        run: |
+          uv pip install -r quant-engine/requirements.txt
+          python run_all_tests.py
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Quant Engine Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: quant-engine/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/quant-engine:latest,${{ secrets.DOCKERHUB_USERNAME }}/quant-engine:${{ github.sha }}
+
+  deploy:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Kubeconfig Authentication
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" > kubeconfig.yaml
+          export KUBECONFIG=kubeconfig.yaml
+
+      - name: Deploy Redis StatefulSet
+        run: kubectl apply -f infrastructure/k8s/redis-statefulset.yaml
+
+      - name: Deploy API and Workers
+        run: |
+          kubectl set image deployment/quant-api-deployment api=${{ secrets.DOCKERHUB_USERNAME }}/quant-engine:${{ github.sha }}
+          kubectl set image deployment/quant-worker-high-priority worker=${{ secrets.DOCKERHUB_USERNAME }}/quant-engine:${{ github.sha }}
+          kubectl set image deployment/quant-worker-ml worker=${{ secrets.DOCKERHUB_USERNAME }}/quant-engine:${{ github.sha }}
+          kubectl set image deployment/quant-celery-beat beat=${{ secrets.DOCKERHUB_USERNAME }}/quant-engine:${{ github.sha }}
+          
+          kubectl apply -f infrastructure/k8s/api-deployment.yaml
+          kubectl apply -f infrastructure/k8s/worker-deployment.yaml
+
+      - name: Verify Rollout Status
+        run: |
+          kubectl rollout status deployment/quant-api-deployment
+          kubectl rollout status deployment/quant-worker-high-priority
+          kubectl rollout status deployment/quant-worker-ml

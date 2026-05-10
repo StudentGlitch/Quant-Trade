@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: swarm_admin
+      MINIO_ROOT_PASSWORD: swarm_secret
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - swarm-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - swarm-net
+    depends_on:
+      - quant-backend
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000" # Mapped to 3001 to avoid conflicting with Next.js
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=swarm_admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - swarm-net
+    depends_on:
+      - prometheus
+
+  quant-backend:
+    build:
+      context: .
+      dockerfile: quant-engine/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - USE_S3_DATALAKE=true
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_ACCESS_KEY_ID=swarm_admin
+      - S3_SECRET_ACCESS_KEY=swarm_secret
+      - S3_USE_SSL=false
+    volumes:
+      - ./quant-engine:/app/quant-engine
+      - ./stockscope-unified:/app/stockscope-unified
+    networks:
+      - swarm-net
+    depends_on:
+      - minio
+
+  stockscope-ui:
+    build:
+      context: ./stockscopeV3
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    networks:
+      - swarm-net
+    depends_on:
+      - quant-backend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://quant-backend:8000/api/v1
+
+  bounty-worker:
+    build:
+      context: ./micro-bounty-swarm
+      dockerfile: Dockerfile
+    networks:
+      - swarm-net
+    # Assuming it communicates with the backend or DuckDB directly
+    depends_on:
+      - minio
+
+  medic-worker:
+    build:
+      context: .
+      dockerfile: quant-engine/Dockerfile
+    command: python quant-engine/src/medic_daemon.py
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    volumes:
+      - .:/app
+    environment:
+      - GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git
+    networks:
+      - swarm-net
+    depends_on:
+      - quant-backend
+
+volumes:
+  minio_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  swarm-net:
+    driver: bridge

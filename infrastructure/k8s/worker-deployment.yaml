@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quant-worker-high-priority
+  labels:
+    app: quant-worker
+    queue: high-priority
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: quant-worker
+      queue: high-priority
+  template:
+    metadata:
+      labels:
+        app: quant-worker
+        queue: high-priority
+    spec:
+      containers:
+      - name: worker
+        image: quant-engine:latest
+        imagePullPolicy: IfNotPresent
+        command: ["uv", "run", "celery", "-A", "src.workers.celery_app", "worker", "-Q", "high_priority", "--loglevel=info"]
+        env:
+        - name: CELERY_BROKER_URL
+          value: "redis://redis-service:6379/0"
+        - name: CELERY_RESULT_BACKEND
+          value: "redis://redis-service:6379/1"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1"
+          limits:
+            memory: "2Gi"
+            cpu: "2"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quant-worker-ml
+  labels:
+    app: quant-worker
+    queue: ml-training
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quant-worker
+      queue: ml-training
+  template:
+    metadata:
+      labels:
+        app: quant-worker
+        queue: ml-training
+    spec:
+      containers:
+      - name: worker
+        image: quant-engine:latest
+        imagePullPolicy: IfNotPresent
+        command: ["uv", "run", "celery", "-A", "src.workers.celery_app", "worker", "-Q", "ml_training", "--loglevel=info"]
+        env:
+        - name: CELERY_BROKER_URL
+          value: "redis://redis-service:6379/0"
+        - name: CELERY_RESULT_BACKEND
+          value: "redis://redis-service:6379/1"
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2"
+          limits:
+            memory: "8Gi"
+            cpu: "4"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quant-celery-beat
+  labels:
+    app: quant-celery-beat
+spec:
+  replicas: 1 # Strictly 1 to avoid duplicate scheduling
+  selector:
+    matchLabels:
+      app: quant-celery-beat
+  template:
+    metadata:
+      labels:
+        app: quant-celery-beat
+    spec:
+      containers:
+      - name: beat
+        image: quant-engine:latest
+        imagePullPolicy: IfNotPresent
+        command: ["uv", "run", "celery", "-A", "src.workers.celery_app", "beat", "--loglevel=info"]
+        env:
+        - name: CELERY_BROKER_URL
+          value: "redis://redis-service:6379/0"
+        - name: CELERY_RESULT_BACKEND
+          value: "redis://redis-service:6379/1"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

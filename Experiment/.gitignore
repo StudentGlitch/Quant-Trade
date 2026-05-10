@@ -1,0 +1,13 @@
+__pycache__/
+.pytest_cache/
+pytest-cache-files-*/
+tmp*/
+data/reports/
+data/*.csv
+downloads/
+*.pdf
+reports.csv
+*.cookies
+*.cookie
+cookie.txt
+playwright/.auth/

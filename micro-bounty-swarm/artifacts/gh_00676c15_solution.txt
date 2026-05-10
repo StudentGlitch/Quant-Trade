@@ -1,0 +1,9 @@
+Fallback solver output (Hermes disabled or unavailable):
+- Review task URL: https://github.com/Tracer-Cloud/opensre/issues/1509
+- Reproduce issue locally.
+- Implement minimal fix scoped to root cause.
+- Add/adjust tests for regression coverage.
+- Prepare concise PR summary with risk notes.
+
+Original task description:
+GitHub Issue: Hermes incident-identification scenarios 1/5 — Provider/transport adapter failures (Codex, OpenRouter, MiniMax, Bedrock IMDS, SSE drift)

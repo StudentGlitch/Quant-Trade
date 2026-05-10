@@ -1,0 +1,9 @@
+Fallback solver output (Hermes disabled or unavailable):
+- Review task URL: https://github.com/vllm-project/vllm-omni/issues/3399
+- Reproduce issue locally.
+- Implement minimal fix scoped to root cause.
+- Add/adjust tests for regression coverage.
+- Prepare concise PR summary with risk notes.
+
+Original task description:
+GitHub Issue: [New Model]: MiniMind-O (0.1B / 0.3B-A0.1B end-to-end Omni with Thinker-Talker + Mimi codec)

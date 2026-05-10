@@ -1,0 +1,9 @@
+Fallback solver output (Hermes disabled or unavailable):
+- Review task URL: https://github.com/saturnzen/LambdaInformationColonData/issues/584
+- Reproduce issue locally.
+- Implement minimal fix scoped to root cause.
+- Add/adjust tests for regression coverage.
+- Prepare concise PR summary with risk notes.
+
+Original task description:
+GitHub Issue: day 7 to page MaV 10-18 + MiV-PA 1+2 liên quan bào chế, đóng gói sơ cấp, độ ổn định (hạn dùng, bảo quản), chuẩn bị thuốc trước khi dùng, thay đổi lớn trong quy trình sản xuất không có CEP, đổi từ thuốc kê đơn sang không kê đơn

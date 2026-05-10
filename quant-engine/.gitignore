@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+logs/
+storage/db/
+storage/artifacts/
+*.duckdb
+*.sqlite
+*.pkl
+*.pt

@@ -1,0 +1,6 @@
+fastapi
+sqlmodel
+uvicorn
+python-dotenv
+psycopg2-binary
+python-jose[cryptography]

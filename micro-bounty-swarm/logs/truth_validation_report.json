@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-05-06T17:31:43.818008+00:00",
+  "database_exists": true,
+  "checks": {
+    "total_bounties": 492,
+    "submitted": 0,
+    "submitted_unverified": 478,
+    "submitted_attempts": 478,
+    "solved_l3": 0,
+    "failed": 14,
+    "verification_logs_present": true,
+    "verification_logs_count": 29,
+    "acceptance_rate_l3": 0.0
+  }
+}
